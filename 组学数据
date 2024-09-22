@@ -1,0 +1,54 @@
+##倾向性匹配
+library(MatchIt)
+library(tableone)
+# 确保某变量被视为因子型变量
+Inflammation$HF <- as.factor(Inflammation$HF)
+Inflammation$Gender <- as.factor(Inflammation$Gender)
+Inflammation$Smoke <- as.factor(Inflammation$Smoke)
+Inflammation$Alcohol <- as.factor(Inflammation$Alcohol)
+Inflammation$Hypertension <- as.factor(Inflammation$Hypertension)
+Inflammation$CKD <- as.factor(Inflammation$CKD)
+#选择变量
+vars <- c("age", "Gender", "Hypertension", "Glucose", "Smoke", "Scr", "HDL", "BMI")
+tab1 <- CreateTableOne(vars = vars, strata = "HF", data = Inflammation)
+#导出数据，计算p, SMD
+print(tab1, showAllLevels = TRUE, smd = TRUE)
+#设置随机数
+set.seed(1234)
+#psm计算
+
+psm <- matchit(
+  HF ~ age + Gender + Hypertension + Glucose + Smoke + Scr + HDL + BMI,
+  data = Inflammation,
+  method = "nearest", #method="nearest";method="exact"病例组和对照组在每一变量上精确匹配,参数完全相同
+  ratio = 1, #倾向匹配比为1：N
+  replace = F, #不代替
+  distance = "logit",
+  caliper = 0.02 #设置卡钳值（距离度量的标准偏差数），与SPSS不同，为ps标准差的倍数，本例为0.02，即0.02个标准差；
+  
+)
+summary(psm)
+#提取匹配后的病例对照
+matchdata <- match.data(psm)
+View(matchdata)
+#排序匹配值
+matchdata$subclass <- sort(matchdata$subclass)
+
+#直方图
+plot(psm, type = "hist", interactive=FALSE)
+
+tab2 <- CreateTableOne(vars = vars, strata = "HF", data = matchdata)
+#导出数据，计算p,SMD
+print(tab2, showAllLevels = TRUE, smd = TRUE)
+#导出文件以便进行更详细的修改
+print(matchdata, quote = T, noSpaces = T)
+matchdata <- print(
+  matchdata,
+  quote = F, #不显示引号
+  noSpaces = T,#是否为对齐而添加的空间
+  printToggle = F #输出matrix
+  )
+write.csv(matchdata, file = "matchdata_new")
+write.xlsx(matchdata, file = "matchdata_new")
+
+###组学
